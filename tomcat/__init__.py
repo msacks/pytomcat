@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 
 import re, os
+import time
 from error import TomcatError
 from jmxproxy import JMXProxyConnection
 from manager import ManagerConnection
+
 
 class Tomcat:
     def __init__(self, host, user = 'admin', passwd = 'admin', port = 8080):
@@ -60,6 +62,63 @@ class Tomcat:
 
     def find_pools_over(self, percentage):
         return list(k for k, v in self.memory_usage().iteritems() if v > percentage)
+
+#TODO break this down into two separate methods
+# one returns a list of pools over 50
+# one returns true or false if the gc
+    def check_memory(self, percentage, waitTime=30, poll_interval=5):
+        gc_done = False
+        wait_total = 0
+        while len(self.find_pools_over(percentage)) > 0:
+            if wait_total > waitTime:
+                return False
+            if not gc_done:
+                self.run_gc()
+                gc_done = True
+            time.sleep(poll_interval)
+            wait_total += poll_interval
+
+        return True
+
+    def find_pools_over(self, percentage):
+        return list(k for k, v in self.memory_usage().iteritems() if v > percentage)
+
+#    def ...
+#        if(len(usage) > 0):
+#            self.run_gc()
+#            time.sleep(waitTime)
+#            usage = self.find_pools_over(percentage)
+#            if len(usage) > 0:
+#                return False
+#            else:
+#                return True
+#
+#        usage = {}
+#
+#        #Try and see if a garbage collect helps
+#        for k, v in sorted(self.memory_usage().iteritems()):
+#            if v > percentage:
+#                print "A memory pool is over " + str(percentage) + " percent, trying GC and waiting " + str(waitTime) + " seconds"
+#                self.run_gc()
+#                time.sleep(waitTime)
+#                print "GC Complete"
+#                break
+#
+#    #continue checking memory pools
+#        for k, v in sorted(self.memory_usage().iteritems()):
+#            if v > percentage:
+#                self.run_gc()
+#                time.sleep(waitTime)
+#                print str(k) + " is more than " + str(percentage) + " percent. "
+#                print "ERROR: Cannot deploy, one memory pool is over 50% used"
+#                exit(12)
+#            else:
+#                print str(k) + " less than " + str(v) + " percent : OK"
+#                continue
+#            print '\t\t{0:<30}: {1:3}%'.format(k, v)
+#
+#        return usage
+
 
     def run_gc(self):
         '''
@@ -211,6 +270,9 @@ class Tomcat:
     def max_heap(self):
         return self.jmx.get('java.lang:type=Memory', 'HeapMemoryUsage', 'max')
 
+    def used_heap(self):
+        return self.jmx.get('java.lang:type=Memory', 'HeapMemoryUsage', 'used')
+
     def max_nonheap(self):
         return self.jmx.get('java.lang:type=Memory', 'NonHeapMemoryUsage', 'max')
 
@@ -222,6 +284,14 @@ class Tomcat:
         '''
         (context, path, version) = parse_warfile(filename)
         return self.mgr.deploy(filename, context, vhost)
+
+    def deploy_all(self, webapps, path=None, vhost='localhost'):
+            '''
+            Deploy a Web application archive (WAR)
+
+            >>> t.deploy('/tmp/myapp.war')
+            '''
+            return self.mgr.deploy(webapps, path, vhost)
 
     def undeploy(self, context, vhost='localhost'):
         '''

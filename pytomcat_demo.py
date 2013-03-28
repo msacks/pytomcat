@@ -4,7 +4,7 @@ import re
 from tomcat import Tomcat,TomcatCluster
 
 def main():
-    t = Tomcat('192.168.50.10', 'admin', 'admin')
+    t = Tomcat('192.168.50.11', 'admin', 'admin')
 
     print 'Number of Threads: {0}'.format(len(t.dump_all_threads()))
     has_cluster = t.has_cluster()
