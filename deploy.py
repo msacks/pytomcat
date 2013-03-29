@@ -1,31 +1,43 @@
 #!/usr/bin/env python
 
 import re
-from tomcat import Tomcat, TomcatCluster
+from tomcat import Tomcat, TomcatCluster, parse_warfile
 import time
 import logging
 
-logging.basicConfig(filename='example.log',level=logging.DEBUG)
-logging.debug('main: This message should go to the log file')
+def cluster_deploy(cluster, webapp_list, interval=20, timeout=40):
+
+    def is_started(warFile):
+        context = parse_warfile(warFile)
+        print "CONTEXT: " + str(context[0])
+        for k, v in cluster.webapp_status().iteritems():
+            print "KEY: " + str(k)
+            print "VALUE: " + str(v)
+            if k == context[0] and v{} == "STARTED":
+                return True
+        return False
 
 
-def cluster_deploy(cluster, webapp_list, interval=20, timeout=300):
     deploy_results = {}
+    counter = 0
 
     for warFile in webapp_list:
         deploy_results = cluster.run_command("deploy", warFile)
 
-    for k, v in cluster.list_webapps().iteritems():
-        if v == "STARTED":
-            print "all apps successfully deployed"
-            exit(0)
-        else:
-            while interval != timeout:
-                for k,v in cluster.list_webapps().iteritems():
-                    if v != "STARTED":
-                        print "apps haven't started yet, waiting 10 seconds"
-                        time.sleep(10)
-                    interval += 1
+    if is_started(warFile) == True:
+        print "all apps successfully deployed"
+        exit(0)
+    else:
+        while counter != timeout and is_started(warFile) == False:
+
+                time.sleep(interval)
+                print cluster.webapp_status()
+                print "Application still starting"
+                counter += 20
+                print "COUNTER: " + str(counter)
+                if counter == timeout:
+                    print "Deployment failed"
+                    exit(20)
 
 
 def main():
