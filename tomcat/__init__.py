@@ -2,9 +2,15 @@
 
 import re, os
 import time
+import logging
 from error import TomcatError
 from jmxproxy import JMXProxyConnection
 from manager import ManagerConnection
+
+
+#TODO refine logging
+
+logging.basicConfig(filename='/tmp/deployer.log',level=logging.DEBUG)
 
 
 class Tomcat:
@@ -64,8 +70,8 @@ class Tomcat:
         return list(k for k, v in self.memory_usage().iteritems() if v > percentage)
 
 #TODO break this down into two separate methods
-# one returns a list of pools over 50
-# one returns true or false if the gc
+# returns true if there is a pool over the percentage limit
+
     def check_memory(self, percentage, waitTime=30, poll_interval=5):
         gc_done = False
         wait_total = 0
@@ -167,7 +173,18 @@ class Tomcat:
         >>> map(lambda x: x['hostname'], t.cluster_members().values())
         ['192.168.56.101', '192.168.56.102', '192.168.56.103']
         '''
-        return self.jmx.query('Catalina:type=Cluster,component=Member,*')
+
+        members = self.jmx.query('Catalina:type=Cluster,component=Member,*')
+#        filtered_members = filter (lambda default_host: default_host != "0.0.0.0", members)
+
+        def filtered_members(m):
+            bad_ips = ["0.0.0.0", "255.255.255.255", "127.0.0.1", "localhost"]
+            return m['hostname'] not in bad_ips
+
+        return dict((k, v) for k, v in members.iteritems() if filtered_members(v))
+
+
+       # return self.jmx.query('Catalina:type=Cluster,component=Member,*')
 
     def active_members(self):
         '''
@@ -285,13 +302,6 @@ class Tomcat:
         (context, path, version) = parse_warfile(filename)
         return self.mgr.deploy(filename, context, vhost)
 
-    def deploy_all(self, webapps, path=None, vhost='localhost'):
-            '''
-            Deploy a Web application archive (WAR)
-
-            >>> t.deploy('/tmp/myapp.war')
-            '''
-            return self.mgr.deploy(webapps, path, vhost)
 
     def undeploy(self, context, vhost='localhost'):
         '''

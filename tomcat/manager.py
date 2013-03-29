@@ -15,7 +15,7 @@ class ManagerConnection:
     progress = None
 
     def __init__(self, host, user = 'admin', passwd = 'admin',
-                 port = 8080, timeout = 10):
+                 port = 8080, timeout = 300):
         self.timeout = timeout
         self.baseurl = 'http://%s:%s/manager/text/' % (host, port)
         # use custom header, HTTPBasicAuthHandler is an overcomplicated POS
@@ -29,6 +29,11 @@ class ManagerConnection:
         request.add_header("Authorization", self.auth_header)
         request.add_header("Host", vhost)
         result = urllib2.urlopen(request, None, self.timeout)
+
+        #try: urllib2.urlopen(request, None, self.timeout)
+        #except urllib2.URLError as e:
+            #print e.reason
+
         rv = result.read().replace('\r','')
         if not rv.startswith('OK'):
             raise TomcatError(rv)
@@ -38,7 +43,7 @@ class ManagerConnection:
         request = urllib2.Request(self._cmd_url(command, parameters))
         return self._do_request(request, vhost)
 
-    def _do_put(self, command, parameters, data, vhost):
+    def _do_put(self, command, parameters, data, vhost, timeout=100):
         # http://stackoverflow.com/questions/111945/is-there-any-way-to-do-http-put-in-python
         request = urllib2.Request(self._cmd_url(command, parameters), data)
         request.add_header('Content-Type', 'application/binary')
@@ -48,7 +53,7 @@ class ManagerConnection:
     def deploy(self, filename, context, vhost='localhost'):
         params = urllib.urlencode({ 'path': context })
         data = _urllib_file(filename, 'r', self.progress)
-        return self._do_put('deploy', params, data, vhost)
+        return self._do_put('deploy', params, data, vhost, timeout=100)
 
     def undeploy(self, context, vhost='localhost'):
         self._do_get('undeploy', urllib.urlencode({ 'path' : context }), vhost)

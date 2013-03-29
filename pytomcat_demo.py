@@ -46,6 +46,7 @@ def main():
     t.expire_sessions('/manager')
     t.run_gc()
     c = TomcatCluster('localhost', 'admin', 'admin')
+    c.run_command("deploy", warFiles)
     print 'Cluster wide Max Heap: %s' % c.run_command('max_heap')
 
 if __name__ == "__main__":
